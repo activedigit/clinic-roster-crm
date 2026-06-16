@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>לוח ניהול משמרות</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container" id="app">
+    <div class="card state-box"><div class="emoji">⏳</div><p>טוען…</p></div>
+  </div>
+  <div id="toast"></div>
+  <div id="modal"></div>
+
+  <script>
+  "use strict";
+  const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+  const WD = ["א","ב","ג","ד","ה","ו","ש"];
+  const token = decodeURIComponent(location.pathname.split("/admin/")[1] || "");
+
+  let month = curMonth();
+  let data = { staff: [] };
+  let tab = "board";
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function curMonth() { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
+  function monthTitle(ms) { const [y, m] = ms.split("-").map(Number); return MONTHS[m - 1] + " " + y; }
+  function shiftMonth(ms, delta) {
+    let [y, m] = ms.split("-").map(Number);
+    m += delta; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+    return y + "-" + pad(m);
+  }
+  function todayStr() { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  const $ = (id) => document.getElementById(id);
+  function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
+  function roleLabel(r) { return r === "nurse" ? "אח/ות" : "רופא/ה"; }
+  function roleCls(r) { return r === "nurse" ? "badge-nurse" : "badge-doctor"; }
+
+  function toast(msg, kind) {
+    const t = $("toast");
+    t.textContent = msg; t.className = "show " + (kind || "");
+    clearTimeout(toast._t); toast._t = setTimeout(() => (t.className = ""), 2400);
+  }
+
+  async function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    if (opts.body && typeof opts.body !== "string") opts.body = JSON.stringify(Object.assign({ token }, opts.body));
+    const r = await fetch(path, opts);
+    if (r.status === 403) { showForbidden(); throw new Error("forbidden"); }
+    if (!r.ok) throw new Error("api " + r.status);
+    return r.json();
+  }
+
+  function showForbidden() {
+    $("app").innerHTML = '<div class="card state-box"><div class="emoji">🔒</div><h2>קישור הניהול אינו תקין</h2><p>הקישור שגוי. השתמש בקישור הניהול הסודי הנכון.</p></div>';
+  }
+
+  async function load() {
+    if (!token) return showForbidden();
+    try {
+      data = await api("/api/admin/overview?token=" + encodeURIComponent(token) + "&month=" + month);
+      render();
+    } catch (e) {
+      if (e.message !== "forbidden")
+        $("app").innerHTML = '<div class="card state-box"><div class="emoji">⚠️</div><h2>אירעה שגיאה</h2><p>הטעינה נכשלה. רענן את הדף ונסה שוב.</p></div>';
+    }
+  }
+
+  function render() {
+    $("app").innerHTML = `
+      <div class="appbar">
+        <div class="brand"><span class="logo">🩺</span> ניהול משמרות</div>
+        <div class="monthbar no-print">
+          <button id="prev" aria-label="הקודם">‹</button>
+          <span class="title">${monthTitle(month)}</span>
+          <button id="next" aria-label="הבא">›</button>
+        </div>
+      </div>
+      <div class="tabs no-print">
+        <button class="tab ${tab === "board" ? "active" : ""}" data-tab="board">📅 לוח חודשי</button>
+        <button class="tab ${tab === "staff" ? "active" : ""}" data-tab="staff">👥 עובדים (${data.staff.length})</button>
+      </div>
+      <div id="view"></div>`;
+
+    $("prev").onclick = () => changeMonth(-1);
+    $("next").onclick = () => changeMonth(1);
+    document.querySelectorAll(".tab").forEach((b) => (b.onclick = () => { tab = b.dataset.tab; render(); }));
+
+    if (tab === "board") renderBoard(); else renderStaff();
+  }
+
+  async function changeMonth(delta) { month = shiftMonth(month, delta); await load(); }
+
+  /* ============ לוח חודשי ============ */
+  function renderBoard() {
+    const [y, m] = month.split("-").map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const view = $("view");
+
+    if (!data.staff.length) {
+      view.innerHTML = '<div class="card board-empty"><div style="font-size:46px">👥</div><p style="margin-top:10px">אין עדיין עובדים.<br>עבור ללשונית «עובדים», הוסף רופאים ואחים/ות ושלח להם את הקישורים.</p></div>';
+      return;
+    }
+
+    // סטטיסטיקה
+    let totalShifts = 0; const perDay = new Array(dim + 1).fill(0);
+    for (const s of data.staff) for (const d of s.days) { totalShifts++; const dd = Number(d.slice(8, 10)); if (dd >= 1 && dd <= dim) perDay[dd]++; }
+    let busyDay = 0, busyCount = 0;
+    for (let d = 1; d <= dim; d++) if (perDay[d] > busyCount) { busyCount = perDay[d]; busyDay = d; }
+
+    let html = `
+      <div class="stats">
+        <div class="stat"><div class="v">${data.staff.length}</div><div class="l">מספר עובדים</div></div>
+        <div class="stat"><div class="v">${totalShifts}</div><div class="l">סך ימי המשמרת בחודש</div></div>
+        <div class="stat"><div class="v">${busyDay ? busyDay + " (" + busyCount + ")" : "—"}</div><div class="l">היום העמוס ביותר</div></div>
+      </div>
+      <div class="toolbar no-print">
+        <button class="btn btn-sm" id="btnPrint">🖨️ הדפסה</button>
+        <button class="btn btn-sm" id="btnCsv">⬇️ ייצוא לאקסל</button>
+        <button class="btn btn-sm" id="btnReload">↻ רענון</button>
+      </div>
+      <div class="board-wrap">`;
+
+    const today = todayStr();
+    // כותרת הטבלה
+    html += '<table class="board"><thead><tr><th class="col-name">עובד</th>';
+    for (let d = 1; d <= dim; d++) {
+      const ds = y + "-" + pad(m) + "-" + pad(d);
+      const dow = new Date(y, m - 1, d).getDay();
+      const cls = [];
+      if (dow === 5 || dow === 6) cls.push("wknd");
+      if (ds === today) cls.push("today");
+      html += '<th class="' + cls.join(" ") + '">' + d + '<span class="dow">' + WD[dow] + "</span></th>";
+    }
+    html += '<th class="col-total">סה״כ</th></tr></thead><tbody>';
+
+    // שורות העובדים
+    for (const s of data.staff) {
+      const set = new Set(s.days);
+      const roleC = s.role === "nurse" ? "nurse" : "doc";
+      html += '<tr><td class="col-name"><span class="nm">' + esc(s.name) + '</span><span class="badge ' + roleCls(s.role) + '">' + roleLabel(s.role) + "</span></td>";
+      let tot = 0;
+      for (let d = 1; d <= dim; d++) {
+        const ds = y + "-" + pad(m) + "-" + pad(d);
+        const dow = new Date(y, m - 1, d).getDay();
+        const on = set.has(ds);
+        if (on) tot++;
+        const cls = ["cell"];
+        if (on) cls.push("on", roleC);
+        if (dow === 5 || dow === 6) cls.push("wknd");
+        if (ds === today) cls.push("today");
+        html += '<td class="' + cls.join(" ") + '" data-s="' + s.id + '" data-d="' + ds + '"></td>';
+      }
+      html += '<td class="col-total">' + tot + "</td></tr>";
+    }
+
+    // סך יומי
+    html += '</tbody><tfoot><tr><th class="col-name">סה״כ יומי</th>';
+    for (let d = 1; d <= dim; d++) html += "<td>" + (perDay[d] || "") + "</td>";
+    html += '<td class="col-total">' + totalShifts + "</td></tr></tfoot></table></div>";
+    html += '<div class="legend no-print"><span><i class="lg doc"></i> רופא/ה</span><span><i class="lg nurse"></i> אח/ות</span><span><i class="lg wk"></i> סוף שבוע</span><span><i class="lg td"></i> היום</span></div>';
+    html += '<p class="hint no-print">לחץ על כל תא כדי להוסיף או לבטל משמרת לעובד באותו יום.</p>';
+
+    view.innerHTML = html;
+
+    view.querySelectorAll(".cell").forEach((el) => (el.onclick = () => toggleCell(el)));
+    $("btnPrint").onclick = () => window.print();
+    $("btnCsv").onclick = exportCsv;
+    $("btnReload").onclick = load;
+  }
+
+  async function toggleCell(el) {
+    const sid = el.dataset.s, ds = el.dataset.d;
+    const wasOn = el.classList.contains("on");
+    const roleC = (data.staff.find((x) => x.id === sid) || {}).role === "nurse" ? "nurse" : "doc";
+    el.classList.toggle("on"); // עדכון אופטימי
+    el.classList.toggle(roleC, !wasOn);
+    if (wasOn) el.classList.remove("doc", "nurse");
+    try {
+      const res = await api("/api/admin/toggle", { method: "POST", body: { staffId: sid, date: ds } });
+      // סנכרון הנתונים המקומיים והסכומים
+      const s = data.staff.find((x) => x.id === sid);
+      if (s) {
+        const i = s.days.indexOf(ds);
+        if (res.active && i === -1) s.days.push(ds);
+        if (!res.active && i !== -1) s.days.splice(i, 1);
+      }
+      updateTotals();
+    } catch (e) {
+      el.classList.toggle("on", wasOn); // ביטול בעת כשל
+      el.classList.toggle(roleC, wasOn);
+      if (!wasOn) el.classList.remove("doc", "nurse");
+      toast("השמירה נכשלה, נסה שוב", "err");
+    }
+  }
+
+  function updateTotals() {
+    const [y, m] = month.split("-").map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const perDay = new Array(dim + 1).fill(0);
+    let total = 0;
+    for (const s of data.staff) for (const d of s.days) { total++; const dd = Number(d.slice(8, 10)); if (dd >= 1 && dd <= dim) perDay[dd]++; }
+    // סך לכל עובד
+    document.querySelectorAll("tbody tr").forEach((tr) => {
+      const onCount = tr.querySelectorAll(".cell.on").length;
+      tr.querySelector(".col-total").textContent = onCount;
+    });
+    // סך יומי
+    const foot = document.querySelectorAll("tfoot td");
+    for (let d = 1; d <= dim; d++) if (foot[d - 1]) foot[d - 1].textContent = perDay[d] || "";
+    if (foot[dim]) foot[dim].textContent = total;
+    // כרטיסי סטטיסטיקה
+    const vs = document.querySelectorAll(".stats .stat .v");
+    if (vs[1]) vs[1].textContent = total;
+    let busyDay = 0, busyCount = 0;
+    for (let d = 1; d <= dim; d++) if (perDay[d] > busyCount) { busyCount = perDay[d]; busyDay = d; }
+    if (vs[2]) vs[2].textContent = busyDay ? busyDay + " (" + busyCount + ")" : "—";
+  }
+
+  /* ============ ייצוא CSV (נפתח באקסל) ============ */
+  function exportCsv() {
+    const [y, m] = month.split("-").map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const rows = [];
+    const header = ["שם", "תפקיד"];
+    for (let d = 1; d <= dim; d++) header.push(String(d));
+    header.push("סה״כ");
+    rows.push(header);
+    for (const s of data.staff) {
+      const set = new Set(s.days);
+      const row = [s.name, roleLabel(s.role)];
+      let tot = 0;
+      for (let d = 1; d <= dim; d++) { const ds = y + "-" + pad(m) + "-" + pad(d); const on = set.has(ds); row.push(on ? "כן" : ""); if (on) tot++; }
+      row.push(String(tot));
+      rows.push(row);
+    }
+    const csv = "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "משמרות-" + month + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function csvCell(v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+
+  /* ============ ניהול עובדים ============ */
+  function renderStaff() {
+    const view = $("view");
+    let html = `
+      <div class="card addform">
+        <h3 style="margin-bottom:14px">➕ הוספת עובד חדש</h3>
+        <div class="row">
+          <div><label>שם</label><input id="nName" placeholder="לדוגמה: ד״ר ישראל כהן"></div>
+          <div><label>תפקיד</label>
+            <select id="nRole"><option value="doctor">רופא/ה</option><option value="nurse">אח/ות</option></select>
+          </div>
+          <div><label>וואטסאפ (אופציונלי)</label><input id="nPhone" inputmode="tel" placeholder="בפורמט בינלאומי: 9725…"></div>
+          <button class="btn btn-primary" id="btnAdd">הוסף</button>
+        </div>
+        <p class="hint">לאחר ההוספה יופיע קישור אישי לעובד — שלח לו אותו בוואטסאפ כדי שיסמן את ימי המשמרת מהטלפון.</p>
+      </div>
+      <div id="list" style="margin-top:16px"></div>`;
+    view.innerHTML = html;
+    $("btnAdd").onclick = addStaff;
+    $("nName").addEventListener("keydown", (e) => { if (e.key === "Enter") addStaff(); });
+    renderList();
+  }
+
+  function renderList() {
+    const list = $("list");
+    if (!data.staff.length) { list.innerHTML = '<div class="card board-empty">אין עדיין עובדים.</div>'; return; }
+    list.innerHTML = data.staff.map((s) => `
+      <div class="card staff-card">
+        <div class="who">
+          <span class="badge ${roleCls(s.role)}">${roleLabel(s.role)}</span>
+          <div>
+            <div class="nm">${esc(s.name)}</div>
+            ${s.phone ? '<div class="ph">📱 ' + esc(s.phone) + "</div>" : ""}
+          </div>
+        </div>
+        <div class="staff-actions">
+          <button class="btn btn-sm" data-act="copy" data-id="${s.id}">📋 העתק קישור</button>
+          <a class="btn btn-sm btn-wa" data-act="wa" data-id="${s.id}" target="_blank" rel="noopener">🟢 וואטסאפ</a>
+          <button class="btn btn-sm" data-act="edit" data-id="${s.id}">✏️ עריכה</button>
+          <button class="btn btn-sm btn-danger" data-act="del" data-id="${s.id}">🗑️ מחיקה</button>
+        </div>
+        <div class="linkbox">${esc(s.link)}</div>
+      </div>`).join("");
+
+    list.querySelectorAll("[data-act]").forEach((el) => {
+      const s = data.staff.find((x) => x.id === el.dataset.id);
+      const act = el.dataset.act;
+      if (act === "wa") { el.href = waLink(s); return; }
+      el.onclick = () => {
+        if (act === "copy") copyLink(s);
+        else if (act === "edit") editStaff(s);
+        else if (act === "del") delStaff(s);
+      };
+    });
+  }
+
+  function waMessage(s) {
+    return "שלום " + s.name + " 👋\n" +
+      "זהו הקישור האישי שלך לבחירת ימי המשמרת. פתח אותו מהטלפון וסמן את הימים שבהם תוכל לעבוד:\n" + s.link;
+  }
+  function waLink(s) {
+    const text = encodeURIComponent(waMessage(s));
+    return s.phone ? "https://wa.me/" + s.phone + "?text=" + text : "https://wa.me/?text=" + text;
+  }
+  async function copyLink(s) {
+    try { await navigator.clipboard.writeText(s.link); toast("הקישור הועתק ✓", "ok"); }
+    catch (e) { prompt("העתק את הקישור:", s.link); }
+  }
+
+  async function addStaff() {
+    const name = $("nName").value.trim();
+    if (!name) { toast("הזן את שם העובד", "err"); $("nName").focus(); return; }
+    const role = $("nRole").value, phone = $("nPhone").value.trim();
+    try {
+      const res = await api("/api/admin/staff", { method: "POST", body: { name, role, phone } });
+      data.staff.push(res.staff);
+      $("nName").value = ""; $("nPhone").value = "";
+      renderList();
+      // עדכון מונה הלשונית
+      const tabBtn = document.querySelector('[data-tab="staff"]');
+      if (tabBtn) tabBtn.textContent = "👥 עובדים (" + data.staff.length + ")";
+      toast("העובד נוסף ✓", "ok");
+    } catch (e) { toast("ההוספה נכשלה", "err"); }
+  }
+
+  function editStaff(s) {
+    const m = $("modal");
+    m.innerHTML = `
+      <div class="modal-bg" id="mbg">
+        <div class="modal">
+          <h3>✏️ עריכת פרטי עובד</h3>
+          <div class="fields">
+            <div><label>שם</label><input id="eName" value="${esc(s.name)}"></div>
+            <div><label>תפקיד</label>
+              <select id="eRole">
+                <option value="doctor" ${s.role === "doctor" ? "selected" : ""}>רופא/ה</option>
+                <option value="nurse" ${s.role === "nurse" ? "selected" : ""}>אח/ות</option>
+              </select>
+            </div>
+            <div><label>וואטסאפ (אופציונלי)</label><input id="ePhone" inputmode="tel" value="${esc(s.phone)}"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="eCancel">ביטול</button>
+            <button class="btn btn-primary" id="eSave">שמור</button>
+          </div>
+        </div>
+      </div>`;
+    const close = () => (m.innerHTML = "");
+    $("mbg").onclick = (e) => { if (e.target.id === "mbg") close(); };
+    $("eCancel").onclick = close;
+    $("eSave").onclick = async () => {
+      const name = $("eName").value.trim();
+      if (!name) { toast("השם נדרש", "err"); return; }
+      try {
+        await api("/api/admin/staff", { method: "PUT", body: { id: s.id, name, role: $("eRole").value, phone: $("ePhone").value.trim() } });
+        close();
+        await load();
+        toast("השינוי נשמר ✓", "ok");
+      } catch (e) { toast("השמירה נכשלה", "err"); }
+    };
+    $("eName").focus();
+  }
+
+  async function delStaff(s) {
+    if (!confirm("למחוק את «" + s.name + "» לצמיתות?\nכל המשמרות הרשומות שלו יימחקו גם כן.")) return;
+    try {
+      await api("/api/admin/staff", { method: "DELETE", body: { id: s.id } });
+      data.staff = data.staff.filter((x) => x.id !== s.id);
+      renderList();
+      const tabBtn = document.querySelector('[data-tab="staff"]');
+      if (tabBtn) tabBtn.textContent = "👥 עובדים (" + data.staff.length + ")";
+      toast("נמחק", "ok");
+    } catch (e) { toast("המחיקה נכשלה", "err"); }
+  }
+
+  load();
+  </script>
+</body>
+</html>

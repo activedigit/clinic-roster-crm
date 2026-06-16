@@ -1,0 +1,275 @@
+:root {
+  --bg: #eef2f7;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-2: #cbd5e1;
+  --primary: #0d9488;
+  --primary-d: #0f766e;
+  --primary-l: #ccfbf1;
+  --doctor: #2563eb;
+  --doctor-l: #dbeafe;
+  --nurse: #7c3aed;
+  --nurse-l: #ede9fe;
+  --ok: #16a34a;
+  --ok-l: #dcfce7;
+  --danger: #e11d48;
+  --warn: #d97706;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
+  --shadow-sm: 0 1px 3px rgba(15,23,42,.08);
+}
+
+* { box-sizing: border-box; }
+html { direction: rtl; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Arial Hebrew", Arial, "Rubik", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+h1, h2, h3, p { margin: 0; }
+button { font-family: inherit; }
+a { color: inherit; }
+
+.container { max-width: 1180px; margin: 0 auto; padding: 18px; }
+.container.narrow { max-width: 560px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+/* ===== الأزرار ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; justify-content: center;
+  border: 1px solid var(--line-2);
+  background: #fff; color: var(--ink);
+  padding: 10px 16px; border-radius: 12px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: .15s; white-space: nowrap; text-decoration: none;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary-d); }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-d); border-color: var(--primary-d); color: #fff; }
+.btn-danger { color: var(--danger); border-color: #fecdd3; background: #fff1f2; }
+.btn-danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-wa { color: #128c4a; border-color: #bbf7d0; background: #f0fdf4; }
+.btn-wa:hover { background: #25d366; border-color: #25d366; color: #fff; }
+.btn-sm { padding: 7px 11px; font-size: 13.5px; border-radius: 10px; }
+.btn-icon { padding: 9px; width: 40px; height: 40px; border-radius: 11px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ===== الشارات ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+}
+.badge-doctor { background: var(--doctor-l); color: var(--doctor); }
+.badge-nurse { background: var(--nurse-l); color: var(--nurse); }
+
+/* ===== الحقول ===== */
+input, select {
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: 12px;
+  padding: 10px 13px; background: #fff; width: 100%;
+}
+input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-l); }
+label { font-size: 13.5px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 6px; }
+
+/* ===== الترويسة وشريط الشهر ===== */
+.appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 16px;
+}
+.brand { font-size: 21px; font-weight: 800; display: flex; align-items: center; gap: 9px; }
+.brand .logo { font-size: 26px; }
+.monthbar {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px; box-shadow: var(--shadow-sm);
+}
+.monthbar .title { font-weight: 800; min-width: 130px; text-align: center; font-size: 16px; }
+.monthbar button {
+  border: none; background: #f1f5f9; width: 38px; height: 38px; border-radius: 999px;
+  font-size: 20px; cursor: pointer; color: var(--primary-d); font-weight: 800;
+}
+.monthbar button:hover { background: var(--primary-l); }
+
+/* ===== التبويبات ===== */
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  padding: 9px 18px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* ===== تقويم الموظف ===== */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+.cal-head {
+  text-align: center; font-size: 12.5px; font-weight: 800; color: var(--muted);
+  padding-bottom: 4px;
+}
+.cal-cell {
+  position: relative; aspect-ratio: 1 / 1; border: 1.5px solid var(--line);
+  background: #fff; border-radius: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; color: var(--ink); transition: .12s; padding: 0;
+}
+.cal-cell:hover { border-color: var(--primary); }
+.cal-cell.empty { border: none; background: transparent; cursor: default; }
+.cal-cell.weekend { background: #f8fafc; color: var(--muted); }
+.cal-cell.past { opacity: .45; }
+.cal-cell.selected {
+  background: var(--ok); border-color: var(--ok); color: #fff;
+  box-shadow: 0 4px 10px rgba(22,163,74,.3);
+}
+.cal-cell.selected::after {
+  content: "✓"; position: absolute; top: 3px; inset-inline-start: 6px; font-size: 11px; opacity: .9;
+}
+
+/* ===== شريط الحفظ (الموظف) ===== */
+.savebar {
+  position: sticky; bottom: 0; margin-top: 18px;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  box-shadow: var(--shadow);
+}
+.savebar .count { font-weight: 800; }
+.status { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.status.saving { color: var(--warn); }
+.status.saved { color: var(--ok); }
+.status.error { color: var(--danger); }
+
+/* ===== بطاقات الإحصاء ===== */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow-sm); }
+.stat .v { font-size: 26px; font-weight: 800; color: var(--primary-d); }
+.stat .l { font-size: 13.5px; color: var(--muted); font-weight: 600; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.hint { color: var(--muted); font-size: 13.5px; margin-top: 10px; }
+
+/* ===== الجدول الشهري (المدير) ===== */
+.board-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); }
+table.board { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
+table.board th, table.board td { border-bottom: 1px solid var(--line); border-inline-start: 1px solid var(--line); text-align: center; }
+table.board thead th {
+  position: sticky; top: 0; z-index: 2; background: #f1f5f9; padding: 7px 2px;
+  font-size: 12.5px; color: var(--ink); font-weight: 800; line-height: 1.15;
+}
+table.board thead th .dow { display: block; font-size: 9.5px; font-weight: 700; color: var(--muted); margin-top: 1px; }
+table.board thead th.wknd { background: #fef3e7; }
+table.board thead th.wknd .dow { color: var(--warn); }
+table.board thead th.today { background: var(--primary); color: #fff; }
+table.board thead th.today .dow { color: #d1fae5; }
+
+.col-name {
+  position: sticky; inset-inline-start: 0; z-index: 3; background: #fff;
+  width: 134px; text-align: start !important; padding: 8px 12px;
+  border-inline-start: none !important; box-shadow: 4px 0 8px -6px rgba(0,0,0,.14);
+}
+thead .col-name { z-index: 4; background: #f1f5f9; }
+.col-name .nm { font-weight: 700; font-size: 14px; display: block; line-height: 1.25; margin-bottom: 4px; }
+.col-name .badge { font-size: 11px; padding: 2px 8px; }
+
+.cell { position: relative; height: 42px; cursor: pointer; padding: 0; background: #fff; transition: background .12s; }
+tbody tr:nth-child(even) td { background: #fafcff; }
+tbody tr:nth-child(even) .col-name { background: #fafcff; }
+.cell.wknd { background: #fffaf3; }
+.cell.today { background: rgba(13,148,136,.07); }
+.cell:hover { background: var(--primary-l) !important; }
+.cell.on::before {
+  content: ""; position: absolute; inset: 4px; border-radius: 7px; background: var(--ok);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.cell.on.doc::before { background: var(--doctor); }
+.cell.on.nurse::before { background: var(--nurse); }
+.cell.on::after { content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 800; z-index: 1; }
+.cell.on:hover::before { filter: brightness(.92); }
+
+.col-total { position: sticky; inset-inline-end: 0; background: #f1f5f9; font-weight: 800; width: 48px; box-shadow: -4px 0 8px -6px rgba(0,0,0,.12); }
+thead .col-total, tfoot .col-total { z-index: 4; }
+tfoot th, tfoot td { position: sticky; bottom: 0; background: #e8eef5; font-weight: 800; z-index: 2; font-size: 13px; padding: 7px 2px; }
+tfoot .col-name { z-index: 4; background: #e8eef5; }
+.board-empty { padding: 40px; text-align: center; color: var(--muted); }
+
+/* مفتاح الألوان */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .lg { width: 15px; height: 15px; border-radius: 5px; display: inline-block; }
+.legend .lg.doc { background: var(--doctor); }
+.legend .lg.nurse { background: var(--nurse); }
+.legend .lg.wk { background: #fef3e7; border: 1px solid #f5d9b8; }
+.legend .lg.td { background: var(--primary); }
+
+@media (max-width: 760px) {
+  table.board { table-layout: auto; width: auto; min-width: max-content; }
+  table.board thead th { min-width: 30px; }
+  .cell { min-width: 30px; }
+  .col-name { width: 120px; }
+}
+
+/* ===== قائمة الموظفين ===== */
+.addform .row { display: grid; grid-template-columns: 1.4fr .9fr 1.1fr auto; gap: 10px; align-items: end; }
+.staff-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.staff-card .who { display: flex; align-items: center; gap: 10px; }
+.staff-card .who .nm { font-weight: 800; font-size: 16px; }
+.staff-card .who .ph { color: var(--muted); font-size: 13px; }
+.staff-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.linkbox {
+  margin-top: 10px; width: 100%; font-size: 12.5px; color: var(--muted);
+  background: #f8fafc; border: 1px dashed var(--line-2); border-radius: 10px; padding: 8px 11px;
+  word-break: break-all; direction: ltr; text-align: left;
+}
+
+/* ===== التنبيه (toast) ===== */
+#toast {
+  position: fixed; bottom: 20px; inset-inline-start: 50%; transform: translateX(50%) translateY(120px);
+  background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 12px;
+  font-weight: 700; box-shadow: var(--shadow); transition: transform .25s; z-index: 50; max-width: 90vw;
+}
+#toast.show { transform: translateX(50%) translateY(0); }
+#toast.ok { background: var(--ok); }
+#toast.err { background: var(--danger); }
+
+/* ===== نافذة منبثقة ===== */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex;
+  align-items: center; justify-content: center; padding: 18px; z-index: 60;
+}
+.modal { background: #fff; border-radius: var(--radius); padding: 22px; width: 100%; max-width: 420px; box-shadow: var(--shadow); }
+.modal h3 { margin-bottom: 16px; }
+.modal .fields { display: grid; gap: 12px; }
+.modal .actions { display: flex; gap: 10px; margin-top: 18px; }
+.modal .actions .btn { flex: 1; }
+
+/* ===== الحالة الفارغة / الخطأ ===== */
+.state-box { text-align: center; padding: 40px 20px; }
+.state-box .emoji { font-size: 52px; }
+.state-box h2 { margin: 12px 0 6px; }
+.state-box p { color: var(--muted); }
+
+@media (max-width: 560px) {
+  .addform .row { grid-template-columns: 1fr; }
+  .brand { font-size: 18px; }
+  .stat .v { font-size: 22px; }
+}
+
+/* ===== الطباعة ===== */
+@media print {
+  body { background: #fff; }
+  .no-print, .tabs, .toolbar, .appbar .monthbar button, #toast { display: none !important; }
+  .board-wrap { overflow: visible; border: none; box-shadow: none; }
+  .card { box-shadow: none; }
+  table.board thead th, .col-name, .col-total, tfoot th, tfoot td { position: static; box-shadow: none; }
+  @page { size: landscape; margin: 10mm; }
+}

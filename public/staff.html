@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>בחירת ימי משמרת</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container narrow" id="app">
+    <div class="card state-box"><div class="emoji">⏳</div><p>טוען…</p></div>
+  </div>
+  <div id="toast"></div>
+
+  <script>
+  "use strict";
+  const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+  const WD = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+  const token = decodeURIComponent(location.pathname.split("/s/")[1] || "");
+  const app = document.getElementById("app");
+
+  let month = curMonth();
+  let selected = new Set();
+  let staff = null;
+  let saveTimer = null;
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function curMonth() { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
+  function monthTitle(ms) { const [y, m] = ms.split("-").map(Number); return MONTHS[m - 1] + " " + y; }
+  function shiftMonth(ms, delta) {
+    let [y, m] = ms.split("-").map(Number);
+    m += delta; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+    return y + "-" + pad(m);
+  }
+  function todayStr() { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+
+  function toast(msg, kind) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = "show " + (kind || "");
+    clearTimeout(toast._t); toast._t = setTimeout(() => (t.className = ""), 2200);
+  }
+
+  async function load() {
+    if (!token) return showError();
+    try {
+      const r = await fetch("/api/me?token=" + encodeURIComponent(token) + "&month=" + month);
+      if (r.status === 404) return showError();
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      staff = data.staff;
+      selected = new Set(data.selected);
+      render();
+    } catch (e) { app.innerHTML = '<div class="card state-box"><div class="emoji">⚠️</div><h2>אירעה שגיאה</h2><p>החיבור נכשל. רענן את הדף ונסה שוב.</p></div>'; }
+  }
+
+  function showError() {
+    app.innerHTML = '<div class="card state-box"><div class="emoji">🔗</div><h2>הקישור אינו תקין</h2><p>הקישור שגוי או נמחק. פנה להנהלה לקבלת הקישור שלך.</p></div>';
+  }
+
+  function render() {
+    const roleLabel = staff.role === "nurse" ? "אח/ות" : "רופא/ה";
+    const roleCls = staff.role === "nurse" ? "badge-nurse" : "badge-doctor";
+    app.innerHTML = `
+      <div class="card" style="margin-bottom:14px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px; color:var(--muted); font-weight:700">שלום 👋</div>
+            <div style="font-size:21px; font-weight:800">${esc(staff.name)}</div>
+          </div>
+          <span class="badge ${roleCls}">${roleLabel}</span>
+        </div>
+      </div>
+
+      <div class="appbar" style="justify-content:center; margin-bottom:14px">
+        <div class="monthbar">
+          <button id="prev" aria-label="החודש הקודם">‹</button>
+          <span class="title">${monthTitle(month)}</span>
+          <button id="next" aria-label="החודש הבא">›</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <p style="font-weight:700; margin-bottom:4px">בחר את הימים שבהם תוכל לעבוד החודש</p>
+        <p class="hint" style="margin:0 0 14px">לחץ על יום כדי לסמן אותו, ולחץ שוב כדי לבטל. השינויים נשמרים אוטומטית.</p>
+        <div id="cal"></div>
+      </div>
+
+      <div class="savebar">
+        <span class="count">נבחרו: <span id="cnt">${selected.size}</span> ימים</span>
+        <span class="status saved" id="status">נשמר ✓</span>
+      </div>`;
+
+    document.getElementById("prev").onclick = () => changeMonth(-1);
+    document.getElementById("next").onclick = () => changeMonth(1);
+    renderCal();
+  }
+
+  function renderCal() {
+    const [y, m] = month.split("-").map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const first = new Date(y, m - 1, 1).getDay();
+    const today = todayStr();
+    let h = '<div class="cal-grid">';
+    for (const w of WD) h += '<div class="cal-head">' + w + "</div>";
+    for (let i = 0; i < first; i++) h += '<div class="cal-cell empty"></div>';
+    for (let d = 1; d <= dim; d++) {
+      const ds = y + "-" + pad(m) + "-" + pad(d);
+      const dow = new Date(y, m - 1, d).getDay();
+      const cls = ["cal-cell"];
+      if (selected.has(ds)) cls.push("selected");
+      if (dow === 5 || dow === 6) cls.push("weekend");
+      if (ds < today) cls.push("past");
+      h += '<button type="button" class="' + cls.join(" ") + '" data-d="' + ds + '">' + d + "</button>";
+    }
+    h += "</div>";
+    const cal = document.getElementById("cal");
+    cal.innerHTML = h;
+    cal.querySelectorAll(".cal-cell:not(.empty)").forEach((el) => {
+      el.onclick = () => toggle(el.dataset.d, el);
+    });
+  }
+
+  function toggle(ds, el) {
+    if (selected.has(ds)) { selected.delete(ds); el.classList.remove("selected"); }
+    else { selected.add(ds); el.classList.add("selected"); }
+    document.getElementById("cnt").textContent = selected.size;
+    scheduleSave();
+  }
+
+  function setStatus(kind) {
+    const s = document.getElementById("status");
+    if (!s) return;
+    s.className = "status " + kind;
+    s.textContent = kind === "saving" ? "שומר…" : kind === "error" ? "לא נשמר — נסה שוב" : "נשמר ✓";
+  }
+
+  function scheduleSave() {
+    setStatus("saving");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 550);
+  }
+
+  async function doSave() {
+    saveTimer = null;
+    try {
+      const r = await fetch("/api/me/shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, month, dates: [...selected] }),
+      });
+      if (!r.ok) throw new Error();
+      setStatus("saved");
+    } catch (e) { setStatus("error"); toast("השמירה נכשלה, בדוק את החיבור", "err"); }
+  }
+
+  async function changeMonth(delta) {
+    if (saveTimer) { clearTimeout(saveTimer); await doSave(); }
+    month = shiftMonth(month, delta);
+    await load();
+  }
+
+  // שמירת גיבוי בעת סגירת הדף אם יש שינוי ממתין
+  window.addEventListener("pagehide", () => {
+    if (saveTimer && navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify({ token, month, dates: [...selected] })], { type: "application/json" });
+      navigator.sendBeacon("/api/me/shifts", blob);
+    }
+  });
+
+  function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "clinic-roster-crm",
+  "version": "1.0.0",
+  "description": "نظام إدارة ورديات الدكاتره والممرضين - جدول دوام شهري مع رابط خاص لكل موظف ولوحة مدير",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "private": true
+}

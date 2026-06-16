@@ -1,0 +1,13 @@
+# بيانات التشغيل — تحتوي على التوكن السري وبيانات الموظفين. لا ترفعها أبداً
+data/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ملفات النظام والمحرّر
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
