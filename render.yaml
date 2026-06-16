@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: clinic-roster-crm
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: SEED_DEMO
+        value: "1"
+      - key: NODE_VERSION
+        value: "20"

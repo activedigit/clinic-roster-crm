@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 let state = { adminToken: null, staff: [], shifts: [] };
@@ -39,11 +39,28 @@ function load() {
     state = { adminToken: null, staff: [], shifts: [] };
   }
   let changed = false;
-  if (!state.adminToken) { state.adminToken = newToken(24); changed = true; }
+  // السماح بتحديد توكن الإدارة عبر متغيّر بيئة (مفيد عند النشر على سيرفر)
+  if (process.env.ADMIN_TOKEN) {
+    if (state.adminToken !== process.env.ADMIN_TOKEN) { state.adminToken = process.env.ADMIN_TOKEN; changed = true; }
+  } else if (!state.adminToken) { state.adminToken = newToken(24); changed = true; }
   if (!Array.isArray(state.staff)) { state.staff = []; changed = true; }
   if (!Array.isArray(state.shifts)) { state.shifts = []; changed = true; }
+  // بيانات تجريبية للعرض (تُفعّل بـ SEED_DEMO=1) لتظهر اللوحة معبّأة عند أول نشر
+  if (process.env.SEED_DEMO && state.staff.length === 0) { seedDemo(); changed = true; }
   if (changed) save();
   return state;
+}
+
+function seedDemo() {
+  const d = new Date();
+  const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const mk = (name, role, days) => {
+    const s = { id: newId(), name, role, phone: '', token: newToken(12), createdAt: new Date().toISOString() };
+    state.staff.push(s);
+    for (const day of days) state.shifts.push({ staffId: s.id, date: ym + '-' + String(day).padStart(2, '0') });
+  };
+  mk('ד״ר דוגמה', 'doctor', [2, 3, 9, 10, 16, 17, 23, 24]);
+  mk('אחות דוגמה', 'nurse', [4, 5, 11, 12, 18, 19, 25, 26]);
 }
 
 function getState() { return state; }
